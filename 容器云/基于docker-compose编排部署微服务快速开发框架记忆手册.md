@@ -98,7 +98,7 @@ COPY local.repo /etc/yum.repos.d/
 ```
 
 ```yaml
-version: '2'
+version: '3'
 services:
   pig-mysql:
     environment:
