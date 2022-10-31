@@ -77,7 +77,7 @@ RUN rm -rfv /etc/yum.repos.d/*
 COPY local.repo /etc/yum.repos.d/
 COPY yum /root/yum
 RUN yum install -y make openssl-devel bzip2-devel expat-devel gdbm-devel readline-devel sqlite-devel gcc gcc-devel python-devel mysql-devel
-COPY Python-3.6.5.tgz /opt
+COPY Python-3.6.5.tgz /opt                 #这里要使用COPY 不能用ADD
 RUN tar -zxvf /opt/Python-3.6.5.tgz
 RUN mv Python-3.6.5 /usr/local
 RUN cd /usr/local/Python-3.6.5/ && ./configure && make && make install
@@ -99,8 +99,7 @@ RUN chmod +x /code/djangoBlog/bin/docker_start.sh
 ENTRYPOINT ["/code/djangoBlog/bin/docker_start.sh"]
 ```
 
-```
- vi docker-compose.yaml 
+```yaml
 version: '3'
 services:
   memcached:
@@ -151,5 +150,10 @@ services:
     links:
       - djangoblog:djangoblog
     container_name: blog-nginx
+```
+
+```
+docker-compose up -d
+docker-compose ps
 ```
 
