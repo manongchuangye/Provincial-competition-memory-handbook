@@ -114,24 +114,22 @@ services:
       - 6379:6379
     restart: always
     container_name: pig-redis
-    hostname: pig-redis
   pig-service:
     ports:
       - 8848:8848
       - 9999:9999
     restart: always
     container_name: pig-service
-    hostname: pig-service
     image: pig-service:v1.0
-    extra_hosts:
+    extra_hosts:                       #类似 Docker 中的 `--add-host` 参数，指定额外的 host 名称映射信息。
       - pig-register:127.0.0.1
       - pig-upms:127.0.0.1
       - pig-gateway:127.0.0.1
       - pig-auth:127.0.0.1
       - pig-hou:127.0.0.1
-    stdin_open: true
-    tty: true
-    privileged: true
+    stdin_open: true       #打开标准输入，可以接受外部输入
+    tty: true              #模拟一个伪终端
+    privileged: true       #允许容器中运行一些特权命令
   pig-ui:
     restart: always
     container_name: pig-ui
