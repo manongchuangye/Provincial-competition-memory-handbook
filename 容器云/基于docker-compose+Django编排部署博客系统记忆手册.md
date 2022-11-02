@@ -55,7 +55,7 @@ LC_IDENTIFICATION="en_US.utf8"
 LC_ALL=
 ```
 
-```sh
+```dockerfile
 [root@k8s-worker-node1 DjangoBlog]# cat Dockerfile-nginx
 FROM centos:centos7.9.2009
 MAINTAINER Chinaskills
