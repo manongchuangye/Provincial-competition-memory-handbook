@@ -511,3 +511,40 @@ status_code = requests.get(f"http://192.168.1.107:8774/v2.1/flavors/12345",data=
 print(status_code)
 ```
 
+
+
+
+
+
+
+#### SDK
+
+```python
+import json,requests
+auth_url=f"http://{controller_ip}:5000/v3/auth/tokens"
+body={
+    "auth":{
+        "identity":{
+            
+        }
+    }
+}
+    
+    
+    
+if __name__ == '__main__':  
+   # Initialize connection(通过配置文件）  
+  auth_url = "http://172.128.11.18:5000/v3/"  
+  username = "admin"  
+  password = "000000"  
+  user_domain_name = 'demo' 
+```
+
+```
+
+```
+
+```
+
+```
+
