@@ -1,46 +1,161 @@
+istio
+
+```
+kubeeasy add --istio istio
+
+#创建exam命名空间
+kubectl create ns exam
+#通过为命名空间打标签来实现自动注入
+kubect label ns exam istio-injection=enabled
+```
+
 istio边车代理
 
 ```
 自动注入sidecar在exam命名空间下
 kubectl create namespace exam
 kubectl label namespace exam istio-injection=enabled
-
 ```
 
-helm
+部署示例（金丝雀发布也称灰度发布）
 
 ```
-部署helm，定义一个chart	，名称为web，deployment为nginx，副本为1，默认命名空间
-docker load -i Helm/images.tar
-helm create mychart
-rm -rfv mychart/templates/*       #为什么要删了
-[root@k8s-master-node1 ~]# cat mychart/templates/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
+将master加上污点，将镜像包上传node并导入
+
+[root@master istio-1.8.0]# kubectl apply -f <(istioctl  kube-inject -f /root/istio-1.8.0/samples/bookinfo/platform/kube/bookinfo.yaml)
+service/details created
+serviceaccount/bookinfo-details created
+deployment.apps/details-v1 created
+service/ratings created
+serviceaccount/bookinfo-ratings created
+deployment.apps/ratings-v1 created
+service/reviews created
+serviceaccount/bookinfo-reviews created
+deployment.apps/reviews-v1 created
+deployment.apps/reviews-v2 created
+deployment.apps/reviews-v3 created
+service/productpage created
+serviceaccount/bookinfo-productpage created
+deployment.apps/productpage-v1 created
+
+
+都启动后
+
+[root@master istio-1.8.0]# kubectl get svc
+NAME          TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+details       ClusterIP   10.101.161.207   <none>        9080/TCP   10m
+kubernetes    ClusterIP   10.96.0.1        <none>        443/TCP    7d23h
+productpage   ClusterIP   10.108.218.29    <none>        9080/TCP   10m
+ratings       ClusterIP   10.104.173.211   <none>        9080/TCP   10m
+reviews       ClusterIP   10.96.217.43     <none>        9080/TCP   10m
+[root@master istio-1.8.0]# curl 10.108.218.29:9080/productpage
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Bookstore App</title>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+对外部开放，指定网关
+[root@master istio-1.8.0]# kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml 
+gateway.networking.istio.io/bookinfo-gateway created
+virtualservice.networking.istio.io/bookinfo created
+```
+
+![image-20221110190607745](D:\疯狂内卷文件\云计算省赛准备\省赛记忆手册github\Provincial-competition-memory-handbook\容器云\istio.assets\image-20221110190607745.png)
+
+配置路由管理策略
+
+```
+[root@master ServiceMesh]# cat destination-rule-all.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
 metadata:
-name: {{ .Release.Name }}
+  name: productpage
 spec:
-replicas: {{ .Values.replicas}}
-selector:
-    matchLabels:
-      app: {{ .Values.label }}
-strategy: {}
-template:
-      metadata:
-      labels:
-        app: {{ .Values.label }}
-  spec:
-    containers:
-     - image: {{ .Values.image }}:{{ .Values.imageTag }}
-      name: {{ .Release.Name }}
-
-cat mychart/values.yaml
-replicas: 3
-image: nginx
-imageTag: 1.17
-label: nginx
-
-
-helm install web mychart/
+  host: productpage
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: reviews
+spec:
+  host: reviews
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+  - name: v3
+    labels:
+      version: v3
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ratings
+spec:
+  host: ratings
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+  - name: v2-mysql
+    labels:
+      version: v2-mysql
+  - name: v2-mysql-vm
+    labels:
+      version: v2-mysql-vm
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: details
+spec:
+  host: details
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
 ```
 
+使用下面的命令把50%的流量从reviews:v1转移到reviews:v3（金丝雀版本）
+
+```
+[root@master ServiceMesh]# vi virtual-service-reviews-50-50.yaml 
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 50
+    - destination:
+        host: reviews
+        subset: v3
+      weight: 50
+[root@master ServiceMesh]# kubectl apply -f virtual-service-reviews-50-50.yaml
+virtualservice.networking.istio.io/reviews configured
+```
+
+> 详见kubernetes+Istio实现灰度发布

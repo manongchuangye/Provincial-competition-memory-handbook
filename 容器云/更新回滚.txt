@@ -1,0 +1,49 @@
+1. `kubectl set image` 可以更新现有资源对象的容器镜像
+
+    对象包括 `Pod`、`Deployment`、`DaemonSet`、`Job`、`ReplicaSet`
+
+```
+kubectl set image deployment {deployment名称} {镜像名称}:={镜像名称}:{版本}
+```
+
+2. 我们还可以通过 `kubectl edit yaml` 的方式方式更新 Pod
+
+```
+kubectl edit deployment nginx
+```
+
+> 为了记录版本更新信息，我们需要在 `kubectl create deployment`、`kubectl set image` 命令后面加上 `--record`
+
+`kubectl scale` 命令也可以更改副本数量
+
+通过 `kubectl rollout status` 命令，查看 Pod 的上线状态，即 Pod 副本集的更替状态：
+
+```bash
+kubectl rollout status deployment nginx
+```
+
+我们查看 Deployment 的上线历史记录：
+
+```bash
+kubectl rollout history deployment nginx
+```
+
+现在我们查看 版本2 的详细信息：
+
+```
+kubectl rollout history deployment nginx --revision=2
+```
+
+指定回滚到特点的版本。
+
+```bash
+kubectl rollout undo deployment nginx --to-revision=2
+```
+
+`kubectl rollout pause` 命令可以让我们在 Deployment 的 Pod 版本时，暂停滚动更新。
+
+命令：
+
+```bash
+kubectl rollout pause deployment nginx
+```
