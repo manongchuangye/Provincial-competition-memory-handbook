@@ -1,0 +1,83 @@
+---
+
+  - name: mv yum config
+    shell: mv /etc/yum.repos.d/* /opt 
+
+  - name: copy repo 
+    copy: src=yum.repo dest=/etc/yum.repos.d/
+
+  - name: Copy Repo Tar
+    copy: src=zabbix.tar.gz dest=/opt/ 
+
+  - name: Decompression Package
+    shell: tar -xf /opt/zabbix.tar.gz -C /opt/
+
+
+  - name: Yum Install httpd
+    yum: 
+      name:
+        - httpd 
+      state: present
+  - name: Start Service
+    systemd:
+      name: httpd
+      state: restarted
+      enabled: yes
+
+
+  - name: Install Mariadb
+    yum: 
+      name: 
+        - mariadb-server
+        - mariadb  
+      state: present
+  - name: Start Service
+    systemd:
+      name: mariadb
+      state: restarted
+      enabled: yes
+
+  - name: Config Mariadb User
+    shell: mysqladmin -uroot password {{ DB_PASS }}
+    ignore_errors: yes
+
+  - name: Mariadb Create zabbix
+    shell: mysql -uroot -p{{ DB_PASS }} -e "create database zabbix;"
+    ignore_errors: yes
+    
+  - name: privileages mariadb
+    shell: "{{ item }}"
+    with_items:
+      - mysql -uroot -p{{ DB_PASS }} -e "grant all on *.* to zabbox@'%' identified by 'zabbix';"
+      - mysql -uroot -p{{ DB_PASS }} -e "grant all on *.* to zabbix@'localhost' identified by 'zabbix';"
+
+  - name: Install zabbix
+    yum: 
+      name:
+        - zabbix-server-mysql
+        - zabbix-web-mysql
+        - zabbix-agent
+      state: present
+  - name: sql config mariadb
+    shell: chdir=/usr/share/doc/zabbix-server-mysql-3.4.15/ zcat /usr/share/doc/zabbix-server-mysql-3.4.15/create.sql.gz |mysql -uroot -p{{ DB_PASS }} zabbix
+    ignore_errors: yes
+
+  - name: Php Timezone
+    shell: "{{item}}"
+    with_items:
+      - sed -i "s/^;date.timezone.*/;date.timezone=RPC/g" /etc/php.ini
+      - sed -i "s/#\ php_value/php_value/g" /etc/httpd/conf.d/zabbix.conf
+      - sed -i "s/date.timezone.*/date.timezone Asia\/Shanghai/g" /etc/httpd/conf.d/zabbix.conf
+
+  - name: Config zabbix_server.conf
+    template: src=zabbix_server.conf.j2 dest=/etc/zabbix/zabbix_server.conf
+
+  - name: Restart Httpd And zabbix-server
+    systemd:
+      name: "{{item}}"
+      state: restarted
+      enabled: yes
+    with_items:
+      - httpd
+      - zabbix-server
+

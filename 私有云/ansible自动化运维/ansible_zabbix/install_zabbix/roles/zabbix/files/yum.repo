@@ -1,0 +1,5 @@
+[zabbix]
+name=zabbix
+baseurl=file:///opt/zabbix
+gpgcheck=0
+enabled=1
