@@ -390,3 +390,64 @@ ELK
 EFK是三个开源软件的缩写，分别表示：Elasticsearch、FileBeat和Kabana。其中ELasticsearch负责日志保存和搜索，FileBeat负责收集日志，Kibana负责界面。EFK和ELK的区别在于EFK把ELK的Logstash替换成了FileBeat，因为Filebeat相对于Logstash来说侵入低，无需修改程序目前任何代码和配置，且性能更高。
 ```
 
+helm仓库chartmuseum的部署
+
+```yaml
+#docker
+docker run --name=chartmuseum --restart=always -it -d \
+  -p 8080:8080 \
+  -v ~/charts:/charts \
+  -e STORAGE=local \
+  -e STORAGE_LOCAL_ROOTDIR=/charts \
+  chartmuseum/chartmuseum:latest
+
+helm create test
+helm package test
+mv test-0.1.0.tgz ~/charts/
+helm repo update
+helm search repo test
+helm show chart chartrepo/test
+
+
+#K8s
+kubectl run chartmuseum  --image=10.10.16.10/library/chartmuseum --dry-run=client --port=8080 --env=STORAGE=local --env=STORAGE_LOCAL_ROOTDIR=/charts -oyaml > chartmuseum.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: chartmuseum
+  name: chartmuseum
+spec:
+  volumes:
+  - hostPath:
+      path: /data/charts
+      type: Directory
+    name: chartmuseum
+  containers:
+  - env:
+    - name: STORAGE
+      value: local
+    - name: STORAGE_LOCAL_ROOTDIR
+      value: /charts
+    image: 10.10.16.10/library/chartmuseum:v1.0
+    name: chartmuseum
+    ports:
+    - containerPort: 8080
+    volumeMounts:
+    - mountPath: /chart
+      name: chartmuseum
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+
+#添加本地仓库到 helm repo，看下仓库内容
+helm repo add chartrepo http://10.10.16.10:57499
+helm repo list 
+helm search repo localrepo
+helm push consul-7.1.3.tgz localrepo
+helm repo update 
+```
+
