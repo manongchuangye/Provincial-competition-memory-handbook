@@ -1,0 +1,2 @@
+- name: install swift-controller
+  shell: iaas-install-swift-controller.sh

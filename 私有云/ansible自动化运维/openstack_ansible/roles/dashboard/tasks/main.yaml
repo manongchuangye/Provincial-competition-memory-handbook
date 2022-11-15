@@ -1,0 +1,2 @@
+- name: install dashboard
+  shell: iaas-install-dashboard.sh

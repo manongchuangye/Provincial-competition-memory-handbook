@@ -1,0 +1,2 @@
+- name: install swift-compute
+  shell: iaas-install-swift-compute.sh

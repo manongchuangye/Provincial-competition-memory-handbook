@@ -1,0 +1,2 @@
+- name: install keystone
+  shell: iaas-install-keystone.sh

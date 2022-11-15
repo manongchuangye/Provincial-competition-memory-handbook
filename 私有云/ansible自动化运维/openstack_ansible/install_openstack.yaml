@@ -1,0 +1,26 @@
+---
+
+- hosts: controller
+  remote_user: root
+ 
+  roles: 
+    - init
+    - mariadb
+    - keystone
+    - glance
+    - nova-controller
+    - neutron-controller
+    - dashboard
+    - cinder-controller
+    - swift-controller
+    - heat
+
+- hosts: compute
+  remote_user: root
+  
+  roles:
+    - init
+    - nova-compute
+    - neutron-compute
+    - cinder-compute
+    - swift-compute

@@ -1,0 +1,2 @@
+- name: install heat
+  shell: iaas-install-heat.sh

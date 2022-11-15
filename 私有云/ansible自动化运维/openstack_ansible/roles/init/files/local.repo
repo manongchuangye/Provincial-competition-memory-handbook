@@ -1,0 +1,10 @@
+[centos]
+name=centos
+baseurl=ftp://172.30.18.21/centos
+gpgcheck=0
+enabled=1
+[iaas]
+name=iaas
+baseurl=ftp://172.30.18.21/iaas/iaas-repo
+gpgcheck=0
+enabled=1
