@@ -129,3 +129,48 @@ JinJa2必知必会
 逻辑表达: {% %}
 ```
 
+
+
+
+
+
+
+
+
+
+
+task
+
+playbook
+
+```
+---
+- hosts: webserver
+  remote_user: root
+  vars:
+    - vars1:vlue1
+  tasks:
+    - name: create log
+      file: 
+```
+
+```
+handlers   --    notify   #触发器
+```
+
+```
+tags
+查看标签
+ansible-playbook httpd.yaml --list-tags
+```
+
+```
+setup模块   filter过滤
+```
+
+```
+变量
+1. 主机清单
+2. 
+```
+

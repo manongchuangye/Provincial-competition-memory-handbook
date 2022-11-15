@@ -19,7 +19,7 @@ kubectl get pod -n kubevirt
 kubectl apply -f vmi.yaml
 
 ```yaml
-# $ cat vmi.yaml
+# $ cat vmi.yaml      #重点
 apiVersion: kubevirt.io/v1alpha3
 kind: VirtualMachineInstance
 metadata:
@@ -50,7 +50,7 @@ spec:
       capacity: "2Gi"
   - name: cloudinitdisk
     cloudInitNoCloud:
-      userData: |-
+      userData: |-     #这是啥意思
         #cloud-config
         password: fedora
         chpasswd: { expire: False }
@@ -102,23 +102,23 @@ spec:
     spec:
       domain:
         devices:
-          disks:
+          disks:     #磁盘会将卷作为普通磁盘公开给 VM
             - name: containerdisk
-              disk:
-                bus: virtio
+              disk:          
+                bus: virtio   #磁盘类型，设置磁盘类型，覆盖默认值
             - name: cloudinitdisk
               disk:
-                bus: virtio
-          interfaces:
+                bus: virtio 
+          interfaces:   #接口
           - name: default
             masquerade: {}
-        resources:
+        resources:      #资源
           requests:
             memory: 64M
-      networks:
+      networks:        #网络
       - name: default
         pod: {}
-      volumes:
+      volumes:         #卷
         - name: containerdisk
           containerDisk:
             image: quay.io/kubevirt/cirros-container-disk-demo
@@ -163,7 +163,7 @@ spec:
       - name: containerdisk
         containerDisk:
           image: kubevirt/cirros-container-disk-demo:latest
-      - cloudInitNoCloud:
+      - cloudInitNoCloud:         #允许将数据源附加到 VM
           userDataBase64: IyEvYmluL3NoCgplY2hvICdwcmludGVkIGZyb20gY2xvdWQtaW5pdCB1c2VyZGF0YScK
         name: cloudinitdisk
 [root@master kubevirt]# kubectl apply -f test.yaml
@@ -172,6 +172,12 @@ virtualmachine.kubevirt.io/vm-cirros created
 [root@master kubevirt]# kubectl get vm
 NAME        AGE   VOLUME
 vm-cirros   21m
+
+Domain：domain 是一个虚拟机都需要的根元素，指定了虚拟机需要的所有资源。kubevirt 会根据这个 domain spec 转换成 libvirt 的 XML 文件，创建虚拟机。
+
+存储： spec.volumes 表示真正的存储后端，spec.domain.devices.disks 表示这个 VM 要使用什么存储。具体参考存储一节。
+
+网络：spec.networks 表示真正的网络后端，spec.domain.devices.interfaces 表示这个 VM 使用什么类型网卡设备
 ```
 
 启动VirtualMachineInstance（（vmi）类似于docker镜像的运行实例容器）
@@ -250,3 +256,19 @@ vmiservice-node   NodePort    10.106.62.191   <none>        24:31912/TCP   3s
 ![在这里插入图片描述](D:\疯狂内卷文件\云计算省赛准备\省赛记忆手册github\Provincial-competition-memory-handbook\容器云\Kubevirt\kubevirt.assets\watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA5bCP5Y-255qE5oqA5pyvTG9ncw==,size_20,color_FFFFFF,t_70,g_se,x_16-16684151617465.png)
 
 ![在这里插入图片描述](D:\疯狂内卷文件\云计算省赛准备\省赛记忆手册github\Provincial-competition-memory-handbook\容器云\Kubevirt\kubevirt.assets\watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA5bCP5Y-255qE5oqA5pyvTG9ncw==,size_20,color_FFFFFF,t_70,g_se,x_16-16684151690288.png)
+
+打开kubevirt的`HardDisk` 等模式
+
+```
+kubectl edit kubevirt kubevirt -n kubevirt
+    ...
+    spec:
+      configuration:
+        developerConfiguration:
+          featureGates:
+            - DataVolumes   数据卷
+            - LiveMigration  开启迁移功能
+            - HardDisk  硬盘
+            - Snapshot 开启快照功能
+```
+

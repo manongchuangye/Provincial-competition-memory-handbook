@@ -10,7 +10,7 @@
     copy: src=zabbix.tar.gz dest=/opt/ 
 
   - name: Decompression Package
-    shell: tar -xf /opt/zabbix.tar.gz -C /opt/
+    shell: tar -xzf /opt/zabbix.tar.gz -C /opt/
 
 
   - name: Yum Install httpd
