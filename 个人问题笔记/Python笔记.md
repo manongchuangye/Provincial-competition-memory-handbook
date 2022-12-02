@@ -156,7 +156,7 @@ del var_a, var_b
 列表截取的语法格式 变量[头下标:尾下标]
 ```
 
-![img](D:\疯狂内卷文件\云计算省赛准备\省赛记忆手册github\Provincial-competition-memory-handbook\个人问题笔记\Python笔记.assets\list_slicing1_new1.png)
+![img](Python笔记.assets\list_slicing1_new1.png)
 
 元组（tuple）与列表类似，不同之处在于元组的元素不能修改。元组写在小括号 **()** 里，元素之间用逗号隔开
 
@@ -259,13 +259,33 @@ listdemo = ['Google','Runoob', 'Taobao']
 
 - 集合(set)推导式
 
-```
+```python
+#格式
+{ expression for item in Sequence }
+或
+{ expression for item in Sequence if conditional }
 
+#实例1
+#计算数字 1,2,3 的平方数：
+>>> setnew = {i**2 for i in (1,2,3)}
+>>> setnew
+{1, 4, 9}
+
+#判断不是 abc 的字母并输出：
+>>> a = {x for x in 'abracadabra' if x not in 'abc'}
+>>> a
+{'d', 'r'}
+>>> type(a)
+<class 'set'>
 ```
 
 - 元组(tuple)推导式
 
-```
-
+```python
+元组推导式可以利用 range 区间、元组、列表、字典和集合等数据类型，快速生成一个满足指定需求的元组。
+#格式
+(expression for item in Sequence )
+或
+(expression for item in Sequence if conditional )
 ```
 
