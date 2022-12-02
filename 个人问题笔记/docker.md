@@ -492,3 +492,197 @@ $ sudo yum remove docker \
   ]
 }
 ```
+
+## Docker数据卷
+
+挂载数据卷
+
+Docker 提供了 3 种不同的方式将数据从宿主机挂载到容器中。![Docker 挂载数据卷](docker.assets/165795626005770.png)
+
+### volume (最常用的方式)
+
+volume : Docker 管理宿主机文件系统的一部分，默认位于 `/var/lib/docker/volumes` 目录下, 也是最常用的方式。![Docker 查看本地数据卷](docker.assets/165795655125558.jpeg)
+
+看上图，所有的 Docker 容器数据都保存在 `/var/lib/docker/volumes` 目录下。若容器运行时未指定数据卷， Docker 创建容器时会使用默认的匿名卷（名称为一堆很长的 ID）。
+
+#### 创建一个数据卷
+
+执行如下命令创建数据卷：
+
+```
+docker volume create test-vol
+```
+
+#### 查看所有的数据卷
+
+```
+docker volume ls
+```
+
+#### 查看数据卷信息
+
+执行如下命令，可以查看指定的数据卷信息
+
+```
+# 查看数据卷名为 test-vol 的信息
+docker volume inspect test-vol
+```
+
+#### 运行容器时挂载数据卷
+
+数据卷 `test-vol`创建成功后，我们运行一个 Nginx 容器，并尝试挂载该数据卷，挂载命令支持两种：
+
+1. `-v`
+
+```BASH
+docker run -d -it --name=test-nginx -p 8011:80 -v test-vol:/usr/share/nginx/html nginx:1.1
+```
+
+参数说明：
+
+- `-d` : 后台运行容器；
+- `--name=test-nginx` : 指定容器名为 test-nginx;
+- `-p 8011:80` : 将容器的 80 端口挂载到宿主机的 8011 端口；
+- `-v test-vol:/usr/share/nginx/html` : 将 `test-vol` 数据卷挂载到容器中的 /usr/share/nginx/html 目录上；
+
+1. `--mount`
+
+```
+docker run -d -it --name=test-nginx -p 8011:80 --mount source=test-vol,target=/usr/share/nginx/html nginx:1.13.12
+```
+
+参数说明：
+
+- `--mount source=test-vol,target=/usr/share/nginx/html` : 将 `test-vol` 数据卷挂载到容器中的 /usr/share/nginx/html 目录上；
+
+#### `-v` 和 `--mount` 有什么区别？
+
+都是挂载命令，使用 `-v` 挂载时，如果宿主机上没有指定文件不会报错，会自动创建指定文件；当使用 `--mount`时，如果宿主机中没有这个文件会报错找不到指定文件，不会自动创建指定文件。
+
+容器运行成功后，进入到 `/var/lib/docker/volumes` 目录下，验证数据是否挂载成功：
+
+![验证数据卷是否挂载成功](docker.assets/165796047624428.jpeg)
+
+可以看到已经有了 `50x.html` 、 `index.html` 两个 Nginx 页面相关数据，说明数据卷挂载成功了。挂载成功后，我们不论是修改 `/var/lib/docker/volumes` 下的数据，还是进入到容器中修改 `/usr/share/nginx/html` 下的数据，都会同步修改对应的挂载目录，类似前端开发中双向绑定的作用。
+
+下面，我们停止并删除刚刚运行的 Nginx 容器, 看看数据卷中的数据是否会跟着被删除：
+
+下面，我们停止并删除刚刚运行的 Nginx 容器, 看看数据卷中的数据是否会跟着被删除：
+
+![删除容器，验证数据卷是否还存在](docker.assets/165796382593092.jpeg)删除容器，验证数据卷是否还存在
+
+可以发现数据卷相关数据都还在，表明数据卷的生命周期独立于容器。另外，若下次再创建 Nginx 容器，还可以复用这个数据卷，复用性以及扩张性都非常不错。
+
+### 删除数据卷
+
+由于数据卷的生命期独立于容器，想要删除数据卷，就需要我们手动来操作, 执行命令如下：
+
+```
+docker volume rm test-vol
+```
+
+1. 如果你需要在删除容器的同时移除数据卷，请使用 `docker rm -v` 命令。
+2. 对于那些没有被使用的数据卷，可能会占用较多的磁盘空间，你可以通过如下命令统一删除：
+
+```
+docker volume prune
+```
+
+### bind mount（**比较常用的方式**）
+
+bind mount: 意为可以存储在宿主机中的任意位置。需要注意的是，bind mount 在不同的宿主机系统时不可移植的，比如 Windows 和 Linux 的目录结构是不一样的，bind mount 所指向的 host 目录也不一样。这也是为什么 bind mount 不能出现在 Dockerfile 中的原因所在，因为这样 Dockerfile 就不可移植了。
+
+#### bind mount 使用
+
+```
+docker run -d -it --name=test-nginx -p 8011:80 -v /docker/nginx1:/usr/share/nginx/html nginx:1.13.12
+```
+
+参数说明：
+
+- `-v /docker/nginx1:/usr/share/nginx/html` : 将宿主机中的 `/docker/nginx1` 目录挂载到容器中的 `/usr/share/nginx/html` 目录；
+
+容器运行成功后，进入容器中：
+
+```
+docker exec -it test-nginx /bin/bash
+```
+
+![docker 进入容器](docker.assets/165796623336460.jpeg)
+
+从上图可以看到，与 volume 不同，bind mount 这种方式会隐藏目录中的内容（非空情况下），这里的 `/usr/share/nginx/html` 目录下的 html 文件被隐藏了，所以我们看不到。
+
+但是，我们可以将宿主机中该目录中的文件立刻挂载到容器中，下面验证一下：
+
+1. 新建一个 `index.html`:
+
+   ![创建 index.html 文件](docker.assets/165796671029332.jpeg)
+
+2. 再次进入容器，查看挂载目录内容：
+
+   ![进入 docker 容器](docker.assets/165796684481635.jpeg)
+
+### tmpfs mount (一般不用这种方式)
+
+tmpfs mount : 挂载存储在宿主机的内存中，而不会写入宿主机的文件系统，一般不用此种方式。
+
+## Docker 数据卷容器
+
+如果你有一些需要持续更新的数据需要在容器之间共享，最佳实践是创建数据卷容器。**数据卷容器，其实就是一个正常的 Docker 容器，专门用于提供数据卷供其他容器挂载的**。
+
+### 创建数据卷容器
+
+运行一个容器，并创建一个名为 `dbdata` 的数据卷：
+
+```
+docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container for postgres
+```
+
+容器运行成功后，会发现该数据卷容器处于停止运行状态，这是因为数据卷容器并不需要处于运行状态，只需用于提供数据卷挂载即可。
+
+![Docker 创建数据卷容器](docker.assets/165804090120953.jpeg)
+
+## 挂载数据卷
+
+`--volumes-from` 命令支持从另一个容器挂载容器中已创建好的数据卷。
+
+```
+docker run -d --volumes-from dbdata --name db1 training/postgres
+docker run -d --volumes-from dbdata --name db2 training/postgres
+docker ps
+CONTAINER ID       IMAGE                COMMAND                CREATED             STATUS              PORTS               NAMES
+7348cb189292       training/postgres    "/docker-entrypoint.   11 seconds ago      Up 10 seconds       5432/tcp            db2
+a262c79688e8       training/postgres    "/docker-entrypoint.   33 seconds ago      Up 32 seconds       5432/tcp            db1
+```
+
+还可以使用多个 `--volumes-from` 参数来从多个容器挂载多个数据卷。 也可以从其他已经挂载了数据卷的容器来挂载数据卷。
+
+如果删除了挂载的容器（包括 dbdata、db1 和 db2），数据卷并不会被自动删除。如果想要删除一个数据卷，必须在删除最后一个还挂载着它的容器时使用 `docker rm -v` 命令来指定同时删除关联的容器。
+
+## Docker 使用数据卷容器备份、恢复、迁移数据卷
+
+### 备份
+
+首先使用 `--volumes-from` 命令创建一个加载 dbdata 的容器卷容器，并将宿主机当前目录挂载到容器的 /backup 目录，命令如下：
+
+```
+sudo docker run --volumes-from dbdata -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+```
+
+容器启动后，使用了 `tar` 命令来将 dbdata 数据卷备份为容器中 /backup/backup.tar 文件，因为挂载了的关系，宿主机的当前目录下也会生成 `backup.tar` 备份文件。
+
+### 恢复/迁移
+
+如果要恢复数据到一个容器，首先创建一个带有空数据卷的容器 dbdata2
+
+```
+$ sudo docker run -v /dbdata --name dbdata2 ubuntu /bin/bash
+```
+
+然后创建另一个容器，挂载 dbdata2 容器卷中的数据卷，并使用 `untar` 解压备份文件到挂载的容器卷中。
+
+```
+$ sudo docker run --volumes-from dbdata2 -v $(pwd):/backup busybox tar xvf
+/backup/backup.tar
+```
+
