@@ -173,6 +173,103 @@ spec:
     disktype: ssd
 ```
 
+# PersistentVolume
+
+PersistentVolume (PV) 和 PersistentVolumeClaim (PVC) 提供了方便的持久化卷：PV 提供网络存储资源，而 PVC 请求存储资源。这样，设置持久化的工作流包括配置底层文件系统或者云数据卷、创建持久性数据卷、最后创建 PVC 来将 Pod 跟数据卷关联起来。PV 和 PVC 可以将 pod 和数据卷解耦，pod 不需要知道确切的文件系统或者支持它的持久化引擎。
+
+### Volume 生命周期
+
+Volume 的生命周期包括 5 个阶段
+
+1. Provisioning，即 PV 的创建，可以直接创建 PV（静态方式），也可以使用 StorageClass 动态创建
+2. Binding，将 PV 分配给 PVC
+3. Using，Pod 通过 PVC 使用该 Volume，并可以通过准入控制 StorageObjectInUseProtection（1.9 及以前版本为 PVCProtection）阻止删除正在使用的 PVC
+4. Releasing，Pod 释放 Volume 并删除 PVC
+5. Reclaiming，回收 PV，可以保留 PV 以便下次使用，也可以直接从云存储中删除
+6. Deleting，删除 PV 并从云存储中删除后段存储
+
+根据这 5 个阶段，Volume 的状态有以下 4 种
+
+- Available：可用
+- Bound：已经分配给 PVC
+- Released：PVC 解绑但还未执行回收策略
+- Failed：发生错误
+
+### PV
+
+PersistentVolume（PV）是集群之中的一块网络存储。跟 Node 一样，也是集群的资源。PV 跟 Volume (卷) 类似，不过会有独立于 Pod 的生命周期。比如一个 NFS 的 PV 可以定义为
+
+```YAML
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv0003
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    path: /tmp
+    server: 172.17.0.2
+```
+
+PV 的访问模式（accessModes）有三种：
+
+- ReadWriteOnce（RWO）：是最基本的方式，可读可写，但只支持被单个节点挂载。
+- ReadOnlyMany（ROX）：可以以只读的方式被多个节点挂载。
+- ReadWriteMany（RWX）：这种存储可以以读写的方式被多个节点共享。不是每一种存储都支持这三种方式，像共享方式，目前支持的还比较少，比较常用的是 NFS。在 PVC 绑定 PV 时通常根据两个条件来绑定，一个是存储的大小，另一个就是访问模式。
+
+PV 的回收策略（persistentVolumeReclaimPolicy，即 PVC 释放卷的时候 PV 该如何操作）也有三种
+
+- Retain，不清理, 保留 Volume（需要手动清理）
+- Recycle，删除数据，即 `rm -rf /thevolume/*`（只有 NFS 和 HostPath 支持）
+- Delete，删除存储资源，比如删除 AWS EBS 卷（只有 AWS EBS, GCE PD, Azure Disk 和 Cinder 支持）
+
+### PVC
+
+PV 是存储资源，而 PersistentVolumeClaim (PVC) 是对 PV 的请求。PVC 跟 Pod 类似：Pod 消费 Node 资源，而 PVC 消费 PV 资源；Pod 能够请求 CPU 和内存资源，而 PVC 请求特定大小和访问模式的数据卷。
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: slow
+  selector:
+    matchLabels:
+      release: "stable"
+    matchExpressions:
+      - {key: environment, operator: In, values: [dev]}
+```
+
+PVC 可以直接挂载到 Pod 中
+
+```YAML
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+spec:
+  containers:
+    - name: myfrontend
+      image: dockerfile/nginx
+      volumeMounts:
+      - mountPath: "/var/www/html"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: myclaim
+```
+
 # Secret
 
 ## Secret 类型
@@ -482,6 +579,8 @@ helm package deis-workflow
 
 ## Istio
 
+### 流量管理
+
 #### 服务发现和负载均衡
 
 #### 故障恢复
@@ -597,5 +696,336 @@ spec:
         subset: v2
       weight: 25
 EOF
+```
+
+##### 示例二：将 jason 用户的请求全部发到 v2 版本
+
+```
+cat <<EOF | istioctl replace -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: ratings
+spec:
+  hosts:
+  - ratings
+  http:
+  - match:
+    - sourceLabels:
+        app: reviews
+        version: v2
+      headers:
+        end-user:
+          exact: jason
+EOF
+```
+
+##### 示例三：全部切换到 v2 版本
+
+```
+cat <<EOF | istioctl replace -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+  - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v2
+EOF
+```
+
+##### 示例四：限制并发访问
+
+```
+cat <<EOF | istioctl create -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: reviews
+spec:
+  host: reviews
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+EOF
+```
+
+##### Gateway
+
+Istio 在部署时会自动创建一个 [Istio Gateway](https://istio.io/docs/reference/config/istio.networking.v1alpha3/#Gateway)，用来控制 Ingress 访问
+
+```
+# prepare
+kubectl apply -f <(istioctl kube-inject -f samples/httpbin/httpbin.yaml)
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=httpbin.example.com"
+
+# get ingress external IP (suppose load balancer service)
+kubectl get svc istio-ingressgateway -n istio-system
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+# create gateway
+cat <<EOF | istioctl create -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: httpbin-gateway
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "httpbin.example.com"
+EOF
+
+# configure routes for the gateway
+cat <<EOF | istioctl create -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: httpbin
+spec:
+  hosts:
+  - "httpbin.example.com"
+  gateways:
+  - httpbin-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /status
+    - uri:
+        prefix: /delay
+    route:
+    - destination:
+        port:
+          number: 8000
+        host: httpbin
+EOF
+
+# validate 200
+curl --resolve httpbin.example.com:$INGRESS_PORT:$INGRESS_HOST -HHost:httpbin.example.com -I http://httpbin.example.com:$INGRESS_PORT/status/200
+
+# invalidate 404
+curl --resolve httpbin.example.com:$INGRESS_PORT:$INGRESS_HOST -HHost:httpbin.example.com -I http://httpbin.example.com:$INGRESS_PORT/headers
+```
+
+使用 TLS：
+
+```
+kubectl create -n istio-system secret tls istio-ingressgateway-certs --key /tmp/tls.key --cert /tmp/tls.crt
+
+cat <<EOF | istioctl replace -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: httpbin-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default ingress gateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "httpbin.example.com"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      serverCertificate: /etc/istio/ingressgateway-certs/tls.crt
+      privateKey: /etc/istio/ingressgateway-certs/tls.key
+    hosts:
+    - "httpbin.example.com"
+EOF
+
+
+# validate 200
+curl --resolve httpbin.example.com:$SECURE_INGRESS_PORT:$INGRESS_HOST -HHost:httpbin.example.com -I -k https://httpbin.example.com:$SECURE_INGRESS_PORT/status/200
+```
+
+#### Egress 流量
+
+默认情况下，Istio 接管了容器的内外网流量，从容器内部无法访问 Kubernetes 集群外的服务。可以通过 ServiceEntry 为需要的容器开放 Egress 访问，如
+
+```
+$ cat <<EOF | istioctl create -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: httpbin-ext
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+EOF
+
+$ cat <<EOF | istioctl create -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: httpbin-ext
+spec:
+  hosts:
+    - httpbin.org
+  http:
+  - timeout: 3s
+    route:
+      - destination:
+          host: httpbin.org
+        weight: 100
+EOF
+```
+
+#### 流量镜像
+
+```
+cat <<EOF | istioctl replace -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: httpbin
+spec:
+  hosts:
+    - httpbin
+  http:
+  - route:
+    - destination:
+        host: httpbin
+        subset: v1
+      weight: 100
+    mirror:
+      host: httpbin
+      subset: v2
+EOF
+```
+
+### 安全管理
+
+#### RBAC
+
+Istio Role-Based Access Control (RBAC) 提供了 namespace、service 以及 method 级别的访问控制。其特性包括
+
+- 简单易用：提供基于角色的语意
+- 支持认证：提供服务 - 服务和用户 - 服务的认证
+- 灵活：提供角色和角色绑定的自定义属性
+
+### 访问控制
+
+Istio RBAC 提供了 ServiceRole 和 ServiceRoleBinding 两种资源对象，并以 CustomResourceDefinition (CRD) 的方式管理。
+
+- ServiceRole 定义了一个可访问特定资源（namespace 之内）的服务角色，并支持以前缀通配符和后缀通配符的形式匹配一组服务
+- ServiceRoleBinding 定义了赋予指定角色的绑定，即可以指定的角色和动作访问服务
+
+```yaml
+apiVersion: "rbac.istio.io/v1alpha1"
+kind: ServiceRole
+metadata:
+  name: products-viewer
+  namespace: default
+spec:
+  rules:
+  - services: ["products.default.svc.cluster.local"]
+    methods: ["GET", "HEAD"]
+
+---
+apiVersion: "rbac.istio.io/v1alpha1"
+kind: ServiceRoleBinding
+metadata:
+  name: test-binding-products
+  namespace: default
+spec:
+  subjects:
+  - user: "service-account-a"
+  - user: "istio-ingress-service-account"
+    properties:
+    - request.auth.claims[email]: "a@foo.com"
+    roleRef:
+    kind: ServiceRole
+    name: "products-viewer"
+```
+
+## 排错指南
+
+#### 查看 Pod 状态以及运行节点
+
+```
+kubectl get pods -o wide
+kubectl -n kube-system get pods -o wide
+```
+
+#### 查看 Pod 事件
+
+```
+kubectl describe pod <pod-name>
+```
+
+#### 查看 Node 状态
+
+```
+kubectl get nodes
+kubectl describe node <node-name>
+```
+
+#### kube-apiserver 日志
+
+登录到 master 节点上，然后使用 journalctl -u kube-apiserver 查看其日志
+
+#### kube-controller-manager 日志
+
+登录到 master 节点上，然后使用 journalctl -u kube-controller-manager 查看其日志
+
+#### kube-scheduler 日志
+
+登录到 master 节点上，然后使用 journalctl -u kube-scheduler 查看其日志
+
+#### kube-dns 日志
+
+kube-dns 通常以 Addon 的方式部署，每个 Pod 包含三个容器，最关键的是 kubedns 容器的日志
+
+#### Kubelet 日志
+
+Kubelet 通常以 systemd 管理。查看 Kubelet 日志需要首先 SSH 登录到 Node 上，推荐使用 [kubectl-node-shell](https://github.com/kvaps/kubectl-node-shell) 插件而不是为每个节点分配公网 IP 地址。
+
+```
+curl -LO https://github.com/kvaps/kubectl-node-shell/raw/master/kubectl-node_shell
+chmod +x ./kubectl-node_shell
+sudo mv ./kubectl-node_shell /usr/local/bin/kubectl-node_shell
+
+kubectl node-shell <node>
+journalctl -l -u kubelet
+```
+
+#### Kube-proxy 日志
+
+Kube-proxy 通常以 DaemonSet 的方式部署，可以直接用 kubectl 查询其日志
+
+```
+$ kubectl -n kube-system get pod -l component=kube-proxy
+NAME               READY     STATUS    RESTARTS   AGE
+kube-proxy-42zpn   1/1       Running   0          1d
+kube-proxy-7gd4p   1/1       Running   0          3d
+kube-proxy-87dbs   1/1       Running   0          4d
+$ kubectl -n kube-system logs kube-proxy-42zpn
 ```
 
