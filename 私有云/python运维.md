@@ -1,6 +1,10 @@
+### 查看APIs的网站与端口
 
-
+```
  openstack endpoint list -c "Service Name"  -c "Enabled"  -c "URL"  
+```
+
+
 
 ### list_roles
 
