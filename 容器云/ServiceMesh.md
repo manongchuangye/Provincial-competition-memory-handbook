@@ -5,6 +5,7 @@
 
 1. 
 部署Bookinfo应用
+注：如果运行不起来把镜像改为本地镜像名称
 
 2.
 启用对应用程序的外部访问Istio Gateway,网关指定所有HTTP流量通过80端口流入网格,然后把网关绑定到虚拟服务上
@@ -67,7 +68,7 @@ done
 ```
 
 ```
-启用Istio
+启用Istio 
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
@@ -131,6 +132,22 @@ spec:
       version: v2
 ```
 
+重新部署productpage微服务，istio注入
+
+```
+[root@master ServiceMesh]# cat bookinfo/bookinfo.yaml | istioctl kube-inject -f - | kubectl apply -l app=productpage -f -
+service/productpage unchanged
+deployment.apps/productpage-v1 configured
+
+
+kubectl get pods
+检查productpage的Pod并且查看每个副本的两个容器。第一个容器是微服务本身的，第二个是连接到它的Sidecar代理
+```
+
+
+
+
+
 
 
 
@@ -140,8 +157,6 @@ spec:
 istio
 
 ```
-kubeeasy add --istio istio
-
 #创建exam命名空间
 kubectl create ns exam
 #通过为命名空间打标签来实现自动注入
