@@ -2,7 +2,11 @@
 
 ```yaml
 部署Kubernetes集群
+
+1. 
 部署Bookinfo应用
+
+2.
 启用对应用程序的外部访问Istio Gateway,网关指定所有HTTP流量通过80端口流入网格,然后把网关绑定到虚拟服务上
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -18,9 +22,53 @@ spec:
         name: http
         protocol: HTTP
         number: 80
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: 
+  name: bookinfo
+spec: 
+  gateways:
+    - bookinfo-gateway
+  hosts:
+    - 
+  http:
+    - match:
+        - uri: 
+            exact: /productpage
+        - uri: 
+            prefix: /static
+        - uri: 
+            exact: /login
+        - uri: 
+            exact: /logout
+        - uri: 
+            prefix: /api/v1/products
+      route:
+        - destination:
+            host: productpage
+            port:
+              number: 9080
+确认网关创建完成
+查看Ingress Gateway    kubectl get svc -n istio-system
+可以看到Gateway 80端口对应的NodePort端口
+
+生产测试
+[root@master ServiceMesh]# vi curl.sh
+#!/bin/bash
+while true
+do
+  curl http://10.24.2.5:22092/productpage >/dev/null 2>&1
+  sleep 1
+done
+[root@master ServiceMesh]# chmod +x curl.sh
+[root@master ServiceMesh]# bash curl.sh &
+[1] 2924
 ```
 
-
+```
+启用Istio
+```
 
 
 
