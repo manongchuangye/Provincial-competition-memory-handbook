@@ -1,3 +1,33 @@
+灰度发布
+
+```yaml
+部署Kubernetes集群
+部署Bookinfo应用
+启用对应用程序的外部访问Istio Gateway,网关指定所有HTTP流量通过80端口流入网格,然后把网关绑定到虚拟服务上
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata: 
+  name: bookinfo-gateway
+spec:
+  selector: 
+    istio: ingressgateway             #istio 默认的控制器
+  servers:
+    - hosts:
+        - "*"
+      port:
+        name: http
+        protocol: HTTP
+        number: 80
+```
+
+
+
+
+
+
+
+
+
 istio
 
 ```
