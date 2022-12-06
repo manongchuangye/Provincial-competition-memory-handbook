@@ -218,7 +218,7 @@ gateway.networking.istio.io/bookinfo-gateway created
 virtualservice.networking.istio.io/bookinfo created
 ```
 
-![image-20221110190607745](D:\疯狂内卷文件\云计算省赛准备\省赛记忆手册github\Provincial-competition-memory-handbook\容器云\istio.assets\image-20221110190607745.png)
+![image-20221110190607745](istio.assets\image-20221110190607745.png)
 
 配置路由管理策略
 
@@ -313,3 +313,31 @@ virtualservice.networking.istio.io/reviews configured
 ```
 
 > 详见kubernetes+Istio实现灰度发布
+
+
+
+
+
+## Bookinfo示例
+
+### 应用说明
+
+这个示例部署了一个用于演示多种 Istio 特性的应用，该应用由四个单独的微服务构成。 这个应用模仿在线书店的一个分类，显示一本书的信息。 页面上会显示一本书的描述，书籍的细节（ISBN、页数等），以及关于这本书的一些评论。
+
+Bookinfo 应用分为四个单独的微服务：
+
+- `productpage`. 这个微服务会调用 `details` 和 `reviews` 两个微服务，用来生成页面。
+- `details`. 这个微服务中包含了书籍的信息。
+- `reviews`. 这个微服务中包含了书籍相关的评论。它还会调用 `ratings` 微服务。
+- `ratings`. 这个微服务中包含了由书籍评价组成的评级信息。
+
+`reviews` 微服务有 3 个版本：
+
+- v1 版本不会调用 `ratings` 服务。
+- v2 版本会调用 `ratings` 服务，并使用 1 到 5 个黑色星形图标来显示评分信息。
+- v3 版本会调用 `ratings` 服务，并使用 1 到 5 个红色星形图标来显示评分信息。
+
+![file](ServiceMesh.assets/ab2f39d049614bbd975ec644f19f2eb9tplv-k3u1fbpfcp-zoom-in-crop-mark4536000.webp)
+
+Bookinfo 应用中的几个微服务是由不同的语言编写的。 这些服务对 Istio 并无依赖，但是构成了一个有代表性的服务网格的例子：它由多个服务、多个语言构成，并且 `reviews` 服务具有多个版本。
+
