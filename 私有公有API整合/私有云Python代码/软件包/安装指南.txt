@@ -1,0 +1,6 @@
+﻿1、使用python-3.6.8.tar.gz作为源,安装python3.6
+2、pip3 install certifi-2019.11.28-py2.py3-none-any.whl 
+3、pip3 install urllib3-1.25.11-py3-none-any.whl 
+4、pip3 install idna-2.8-py2.py3-none-any.whl 
+5、pip3 install chardet-3.0.4-py2.py3-none-any.whl
+6、pip3 install requests-2.24.0-py2.py3-none-any.whl 

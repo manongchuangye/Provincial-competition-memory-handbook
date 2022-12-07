@@ -1,4 +1,4 @@
-灰度发布
+### 灰度发布准备工作
 
 ```yaml
 部署Kubernetes集群
@@ -144,11 +144,176 @@ kubectl get pods
 检查productpage的Pod并且查看每个副本的两个容器。第一个容器是微服务本身的，第二个是连接到它的Sidecar代理
 ```
 
+在所有微服务中启用Istio
+
+```
+[root@master ServiceMesh]# cat bookinfo/bookinfo.yaml | istioctl kube-inject -f - | kubectl apply -l app!=productpage -f -
+```
+
+###  灰度发布
+
+#### 1.部署新版本服务
+
+将v2、v3版本的reviews服务部署到集群中，均为单一副本。新版本的reviews可以正常工作后，实际生产流量将开始到达该服务。在当前的设置下，50%的流量将到达旧版本（1个旧版本的Pod），而另外50%的流量将到达新版本（1个新版本Pod）。
+
+```bash
+[root@master ServiceMesh]# cat bookinfo/reviews-v2.yaml | istioctl kube-inject -f - | kubectl apply -f -
+[root@master ServiceMesh]# cat bookinfo/reviews-v3.yaml | istioctl kube-inject -f - | kubectl apply -f -
+```
+
+因为没有明确的默认服务版本和路由，Istio将以轮询方式将请求路由到所有可用版本，所以三种评分结果出现的概率均为三分之一
+
+#### 2.请求路由
+
+由于在启用Istio后不再需要保持副本比例，所以可以安全地设置Kubernetes HPA来管理三个版本Deployment的副本
+
+```
+[root@master ServiceMesh]# kubectl autoscale deployment reviews-v1 --cpu-percent=50 --min=1 --max=10
+[root@master ServiceMesh]# kubectl autoscale deployment reviews-v2 --cpu-percent=50 --min=1 --max=10
+[root@master ServiceMesh]# kubectl autoscale deployment reviews-v3 --cpu-percent=50 --min=1 --max=10
+```
+
+默认请求路由配置文件如下：
+
+```yaml
+[root@master ServiceMesh]# vi virtual-service-all-v1.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: productpage
+spec:
+  hosts:
+  - productpage
+  http:
+  - route:
+    - destination:
+        host: productpage
+        subset: v1
+﹉（“﹉”请学生自行手打，不要复制）
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+  - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+﹉（“﹉”请学生自行手打，不要复制）
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: ratings
+spec:
+  hosts:
+  - ratings
+  http:
+  - route:
+    - destination:
+        host: ratings
+        subset: v1
+﹉（“﹉”请学生自行手打，不要复制）
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: details
+spec:
+  hosts:
+  - details
+  http:
+  - route:
+    - destination:
+        host: details
+        subset: v1
+```
+
+现在已将Istio配置为路由到Bookinfo微服务的v1版本，最重要的是reviews服务的v1版本
+
+#### 3. 流量转移
+
+使用下面的命令把50%的流量从reviews:v1转移到reviews:v3
+
+```
+[root@master ServiceMesh]# vi virtual-service-reviews-50-50.yaml 
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 50
+    - destination:
+        host: reviews
+        subset: v3
+      weight: 50
+[root@master ServiceMesh]# kubectl apply -f virtual-service-reviews-50-50.yaml
+virtualservice.networking.istio.io/reviews configured
+```
+
+假如认为reviews:v3微服务已经稳定，可以通过应用Virtual Service规则将100%的流量路由reviews:v3
+
+```
+[root@master ServiceMesh]# vi virtual-service-reviews-v3.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v3
+[root@master ServiceMesh]# kubectl apply -f virtual-service-reviews-v3.yaml
+virtualservice.networking.istio.io/reviews configured
+```
 
 
 
+### 流量镜像
 
+流量镜像，也称为影子流量，是一个以尽可能低的风险为生产带来变化的强大的功能。镜像会将实时流量的副本发送到镜像服务。镜像流量发生在主服务的关键请求路径之外。
 
+初始化默认路由规则，将所有流量路由到服务的v1版本：
+
+```
+ kubectl apply -f virtual-service-all-v1.yaml
+```
+
+改变reviews服务的流量规则，将v1版本的流量镜像到v2版本
+
+```bash
+[root@master ServiceMesh]# vi virtual-service-mirroring.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 100
+    mirror:
+        host: reviews
+        subset: v2
+[root@master ServiceMesh]# kubectl apply -f virtual-service-mirroring.yaml
+virtualservice.networking.istio.io/reviews configured
+```
 
 
 
