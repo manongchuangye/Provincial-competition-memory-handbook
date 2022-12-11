@@ -289,3 +289,46 @@ listdemo = ['Google','Runoob', 'Taobao']
 (expression for item in Sequence if conditional )
 ```
 
+条件语句
+
+Python条件语句是通过一条或多条语句的执行结果（True或者False）来决定执行的代码块
+
+可以通过下图来简单了解条件语句的执行过程
+
+![img](Python笔记.assets/if-condition.jpg)
+
+基本形式
+
+```python
+if 判断条件1:
+    执行语句1……
+elif 判断条件2:
+    执行语句2……
+elif 判断条件3:
+    执行语句3……
+else:
+    执行语句4……
+```
+
+![img](Python笔记.assets/006faQNTgw1f5wnm0mcxrg30ci07o47l.gif)
+
+例子
+
+```python
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+ 
+# 例1：if 基本用法
+ 
+flag = False
+name = 'luren'
+if name == 'python':         # 判断变量是否为 python 
+    flag = True              # 条件成立时设置标志为真
+    print 'welcome boss'     # 并输出欢迎信息
+else:
+    print name               # 条件不成立时输出变量名称
+
+输出结果为：
+luren            # 输出结果
+```
+
