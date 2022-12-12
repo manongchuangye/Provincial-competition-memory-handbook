@@ -64,7 +64,6 @@ COPY local.repo /etc/yum.repos.d/
 COPY yum /root/yum
 RUN yum -y install nginx
 ADD nginx.conf /etc/nginx/nginx.conf
-RUN /bin/bash -c 'echo init ok'          #有什么用
 EXPOSE 80
 CMD ["nginx","-g","daemon off;"]         #关闭守护进程
 # 确保nginx为pid 1 运行状态 
