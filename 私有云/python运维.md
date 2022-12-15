@@ -458,3 +458,49 @@ if __name__ == '__main__':
     print("创建用户:", user)
 ```
 
+
+
+
+
+
+
+# SDK
+
+查询用户信息
+
+```python
+import json,logging
+import openstack
+# https://docs.openstack.org/openstacksdk/latest/user/index.html
+def create_connection():
+
+    return openstack.connect(
+        auth_url="http://10.10.16.30:5000/v3/",
+        user_domain_name='demo',
+        username="admin",
+        password="000000",
+    )
+print(create_connection())
+
+
+class user_manager:
+    def __init__(self, connect):
+        self.connect = connect
+    def list_users(self):
+        """
+        get User Resource.list object.
+        :return:
+        """
+        users = self.connect.identity.users()
+        #to json
+        user_jsons = {}
+        for user in users:
+            user_jsons[user['name']] = user
+        return json.dumps(user_jsons,indent=2)
+if __name__ == '__main__':
+    conn = create_connection()
+    user_m = user_manager(conn)
+    result = user_m.list_users()
+    print(result)
+```
+
