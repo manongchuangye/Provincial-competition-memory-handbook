@@ -1,2 +1,0 @@
-- name: install nova-compute
-  shell: iaas-install-nova-compute.sh

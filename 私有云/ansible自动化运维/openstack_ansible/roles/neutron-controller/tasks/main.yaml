@@ -1,2 +1,0 @@
-- name: install neutron-controller
-  shell: iaas-install-neutron-controller.sh

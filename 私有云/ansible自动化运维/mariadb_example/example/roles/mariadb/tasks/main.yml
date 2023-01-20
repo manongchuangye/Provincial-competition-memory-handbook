@@ -1,0 +1,29 @@
+---
+- name: copy repo
+  copy: src=gpmall.repo dest=/etc/yum.repos.d/
+- name: config hosts
+  template: src=hosts.j2 dest=/etc/hosts
+- name: install mariadb-server
+  yum: name=mariadb-server state=present
+- name: mariadb
+  systemd:
+    state: started
+    name: mariadb
+    enabled: yes
+- name: init mariadb
+  shell: mysqladmin -u root password '123456'
+- name: config server.cnf
+  template: src=server.cnf.j2 dest=/etc/my.cnf.d/server.cnf
+- name: grant privileges
+  shell: mysql -uroot -p123456 -e "grant all privileges on *.* to root@'%' identified by '123456';"
+- name: stop mariadb
+  shell: systemctl stop mariadb 
+- name: new galera
+  shell: galera_new_cluster 
+  when: ansible_fqdn=="node1"
+- name: start mariadb 1
+  shell: systemctl restart mariadb 
+  when: ansible_fqdn=="node2"
+- name: start mariadb 2
+  shell: systemctl restart mariadb 
+  when: ansible_fqdn=="node3"

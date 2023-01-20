@@ -515,8 +515,6 @@ tar -zvxf Jenkins.tar.gz
 ##### 安装Jenkins
 
 ```yaml
-
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -742,38 +740,6 @@ spec:
 ```
 点击“Create blank project”创建项目springcloud，可见等级选择“Public”
 push源代码到gitlab的springcloud项目
-[root@master Jenkins]# yum install -y git
-[root@master Jenkins]# cd springcloud/
-[root@master springcloud]# git config --global user.name "administrator"
-[root@master springcloud]# git config --global user.email "admin@example.com"
-[root@master springcloud]# git remote remove origin
-[root@master springcloud]# git remote add origin http://10.24.2.16:30888/root/springcloud.git
-[root@master springcloud]# git add .
-[root@master springcloud]# git commit -m "initial commit"
-# On branch master
-nothing to commit, working directory clean
-[root@master springcloud]# git push -u origin master[root@master Jenkins]# yum install -y git
-[root@master Jenkins]# cd springcloud/
-[root@master springcloud]# git config --global user.name "administrator"
-[root@master springcloud]# git config --global user.email "admin@example.com"
-[root@master springcloud]# git remote remove origin
-[root@master springcloud]# git remote add origin http://10.24.2.16:30888/root/springcloud.git
-[root@master springcloud]# git add .
-[root@master springcloud]# git commit -m "initial commit"
-# On branch master
-nothing to commit, working directory clean
-[root@master springcloud]# git push -u origin master
-[root@master Jenkins]# yum install -y git
-[root@master Jenkins]# cd springcloud/
-[root@master springcloud]# git config --global user.name "administrator"
-[root@master springcloud]# git config --global user.email "admin@example.com"
-[root@master springcloud]# git remote remove origin
-[root@master springcloud]# git remote add origin http://10.24.2.16:30888/root/springcloud.git
-[root@master springcloud]# git add .
-[root@master springcloud]# git commit -m "initial commit"
-# On branch master
-nothing to commit, working directory clean
-[root@master springcloud]# git push -u origin master
 [root@master Jenkins]# yum install -y git
 [root@master Jenkins]# cd springcloud/
 [root@master springcloud]# git config --global user.name "administrator"

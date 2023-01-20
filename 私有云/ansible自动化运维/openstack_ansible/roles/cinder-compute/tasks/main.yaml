@@ -1,2 +1,0 @@
-- name: install cinder-compute
-  shell: iaas-install-cinder-compute.sh

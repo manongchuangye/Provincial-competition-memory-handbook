@@ -1,5 +1,5 @@
-[zabbix]
-name=zabbix
+[yum]
+name=yum
 baseurl=file:///opt/zabbix
-gpgcheck=0
 enabled=1
+gpgcheck=0

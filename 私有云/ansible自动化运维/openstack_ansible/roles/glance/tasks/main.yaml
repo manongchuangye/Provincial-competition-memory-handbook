@@ -1,2 +1,0 @@
-- name: install glance
-  shell: iaas-install-glance.sh

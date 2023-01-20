@@ -1,2 +1,0 @@
-- name: install mysql
-  shell: iaas-install-mysql.sh

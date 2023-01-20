@@ -1,7 +1,4 @@
 ---
-
 - hosts: node
-  remote_user: root
- 
-  roles: 
-    - zabbix
+  roles:
+  - zabbix

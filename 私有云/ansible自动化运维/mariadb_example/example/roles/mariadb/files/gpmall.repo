@@ -1,0 +1,5 @@
+[gpmall-repo]
+name=gpmall-repo
+baseurl=ftp://10.24.200.195/gpmall-repo
+gpgcheck=0
+enabled=1

@@ -1,0 +1,66 @@
+---
+# tasks file for zabbix
+- name: copy
+  copy: src=yum.repo dest=/etc/yum.repos.d/
+- name: copy yum
+  copy: src=zabbix.tar.gz dest=/opt/
+- name: tar
+  shell: tar xzvf /opt/zabbix.tar.gz -C /opt
+- name: install httpd
+  yum:
+    name: httpd
+    state: present
+- name: httpd
+  systemd:
+    name: httpd
+    enabled: yes
+    state: started
+- name: install mariadb
+  yum: 
+    name:
+    - mariadb
+    - mariadb-server
+    state: present
+- name: mariadb
+  systemd: 
+    name: mariadb
+    enabled: yes
+    state: started
+- name: admin
+  shell: mysqladmin -uroot password 000000
+  ignore_errors: yes
+- name: create
+  shell: mysql -uroot -p000000 -e "create database zabbix;"
+  ignore_errors: yes
+- name: user
+  shell: mysql -uroot -p000000 -e "grant all on *.* to zabbix@'%' identified by 'zabbix';"
+  ignore_errors: yes
+- name: users
+  shell: mysql -uroot -p000000 -e "grant all on *.* to zabbix@'localhost' identified by 'zabbix';" 
+  ignore_errors: yes
+- name: zabbix
+  yum:
+    name:
+    - zabbix-agent
+    - zabbix-server-mysql
+    - zabbix-web-mysql
+    state: present
+- name: db
+  shell: zcat /usr/share/doc/zabbix-server-mysql-3.4.15/create.sql.gz | mysql -uroot -p000000 zabbix 
+  ignore_errors: yes
+- name: time
+  shell: "{{ item }}"
+  with_items:
+  - sed -i "s/;date.timezone =/;date.timezone =RPC/g" /etc/php.ini 
+  - sed -i "s/# php_value/php_value/g" /etc/httpd/conf.d/zabbix.conf 
+  - sed -i "s/date.timezone.*/date.timezone Asia\/Shanghai/g" /etc/httpd/conf.d/zabbix.conf 
+- name: j
+  template: src=zabbix_server.conf.j2 dest=/etc/zabbix/zabbix_server.conf
+- name: restart
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: restarted
+  with_items:
+    - httpd
+    - zabbix-server
